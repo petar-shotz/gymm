@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidFitnessRecord(data, userId) {
+      return data.userId == userId
+        && data.userId == request.auth.uid
+        && data.key is string
+        && data.key.size() <= 64
+        && data.key.matches('^(profile|favorite_supplements|[0-9]{4}-[0-9]{2}-[0-9]{2})$')
+        && data.value is map
+        && data.updatedAt == request.time
+        && data.keys().hasAll(['userId', 'key', 'value', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'key', 'value', 'updatedAt']);
+    }
+
+    match /test/connection {
+      allow get: if true;
+    }
+
+    match /users/{userId}/records/{recordId} {
+      allow get: if isOwner(userId) && isValidId(recordId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && isValidId(recordId)
+        && recordId == incoming().key
+        && isValidFitnessRecord(incoming(), userId);
+      allow update: if isOwner(userId)
+        && isValidId(recordId)
+        && recordId == existing().key
+        && incoming().userId == existing().userId
+        && incoming().key == existing().key
+        && isValidFitnessRecord(incoming(), userId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['value', 'updatedAt', 'userId', 'key']);
+      allow delete: if isOwner(userId) && isValidId(recordId);
+    }
+  }
+}

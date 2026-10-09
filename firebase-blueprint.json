@@ -1,0 +1,37 @@
+{
+  "entities": {
+    "FitnessRecord": {
+      "title": "FitnessRecord",
+      "description": "A daily fitness journal log or user profile configuration",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The authenticated user UID who owns this fitness record",
+          "maxLength": 128
+        },
+        "key": {
+          "type": "string",
+          "description": "Identifier of the record: 'profile', 'favorite_supplements', or date in 'YYYY-MM-DD' format",
+          "pattern": "^(profile|favorite_supplements|[0-9]{4}-[0-9]{2}-[0-9]{2})$",
+          "maxLength": 64
+        },
+        "value": {
+          "type": "object",
+          "description": "The structured data payload for profile or day log"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Server timestamp when the record was last modified"
+        }
+      },
+      "required": ["userId", "key", "value", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/records/{recordId}": {
+      "schema": "FitnessRecord",
+      "description": "User daily journal records and profile settings"
+    }
+  }
+}
